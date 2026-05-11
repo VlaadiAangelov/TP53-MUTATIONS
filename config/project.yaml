@@ -1,0 +1,30 @@
+project:
+  title: "Predicting TP53 Mutation Status from Gene Expression Profiles"
+  random_state: 42
+
+depmap:
+  # Change this if your instructor asks for a specific DepMap version.
+  release: "DepMap Public 26Q1"
+  expression_file: "OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv"
+  mutation_file_candidates:
+    - "OmicsSomaticMutations.csv"
+    - "CCLE_mutations.csv"
+  metadata_file_candidates:
+    - "Model.csv"
+    - "Models.csv"
+    - "sample_info.csv"
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  expression_processed: "data/processed/expression_matched.csv.gz"
+  labels_processed: "data/processed/tp53_labels.csv"
+  metadata_processed: "data/processed/sample_metadata.csv"
+
+features:
+  top_variable_genes: 3000
+  min_mean_expression: 0.1
+
+split:
+  test_size: 0.15
+  validation_size: 0.15
