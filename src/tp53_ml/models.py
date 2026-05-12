@@ -89,6 +89,22 @@ def multiclass_model_specs(random_state: int = 42) -> dict:
             n_jobs=1,
             random_state=random_state,
         ),
+        "elastic_net_logistic": LogisticRegression(
+            penalty="elasticnet",
+            C=0.2,
+            l1_ratio=0.5,
+            class_weight="balanced",
+            max_iter=5000,
+            solver="saga",
+            n_jobs=1,
+            random_state=random_state,
+        ),
+        "linear_svm": LinearSVC(
+            class_weight="balanced",
+            C=0.2,
+            random_state=random_state,
+            max_iter=10000,
+        ),
         "random_forest": RandomForestClassifier(
             n_estimators=400,
             max_features="sqrt",
@@ -103,6 +119,20 @@ def multiclass_model_specs(random_state: int = 42) -> dict:
             min_samples_leaf=2,
             class_weight="balanced",
             n_jobs=1,
+            random_state=random_state,
+        ),
+        "hist_gradient_boosting": HistGradientBoostingClassifier(
+            learning_rate=0.05,
+            max_iter=250,
+            l2_regularization=0.1,
+            random_state=random_state,
+        ),
+        "mlp": MLPClassifier(
+            hidden_layer_sizes=(256, 64),
+            activation="relu",
+            alpha=0.001,
+            early_stopping=True,
+            max_iter=300,
             random_state=random_state,
         ),
     }
