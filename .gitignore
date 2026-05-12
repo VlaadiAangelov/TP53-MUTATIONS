@@ -16,3 +16,6 @@ reports/tables/*
 !reports/figures/.gitkeep
 !reports/tables/.gitkeep
 
+venv/
+*.egg-info/
+.python-version
