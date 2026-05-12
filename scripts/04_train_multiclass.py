@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import joblib
 import pandas as pd
+from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 
 from tp53_ml.config import load_config
@@ -16,7 +17,7 @@ from tp53_ml.evaluation import multiclass_metrics, save_confusion_matrix
 from tp53_ml.models import feature_selectors, make_pipeline, multiclass_model_specs
 
 
-SCALE_MODELS = {"logistic_l2"}
+SCALE_MODELS = {"logistic_l2", "elastic_net_logistic", "linear_svm", "mlp"}
 
 
 def main() -> None:
@@ -33,7 +34,8 @@ def main() -> None:
 
     X = pd.read_csv(cfg["data"]["expression_processed"], index_col=0)
     labels = pd.read_csv(cfg["data"]["labels_processed"])
-    y_raw = labels["mutation_type_collapsed"].astype(str)
+    label_col = "mutation_type_hotspot" if "mutation_type_hotspot" in labels.columns else "mutation_type_collapsed"
+    y_raw = labels[label_col].astype(str)
 
     counts = y_raw.value_counts()
     keep = y_raw.isin(counts[counts >= args.min_class_count].index)
@@ -62,8 +64,13 @@ def main() -> None:
     selectors = feature_selectors(cfg["features"]["top_variable_genes"], cfg["features"]["min_mean_expression"])
     models = multiclass_model_specs(random_state)
     rows = []
+    print(f"Using mutation-type label column: {label_col}")
+    print("Kept class counts:")
+    print(y.value_counts().to_string())
     for feature_name, selector in selectors.items():
         for model_name, model in models.items():
+            if model_name in {"hist_gradient_boosting", "mlp"} and not feature_name.startswith("top_"):
+                continue
             pipe = make_pipeline(selector, model, scale=model_name in SCALE_MODELS)
             pipe.fit(X_train, y_train)
             y_pred = pipe.predict(X_val)
@@ -90,12 +97,59 @@ def main() -> None:
         path="reports/figures/multiclass_confusion_matrix.png",
         title="TP53 mutation type",
     )
+    _save_confusion_matrices(y_test, y_test_pred, ordered_labels, "reports/figures/multiclass_confusion_matrices.png")
+    per_class = _per_class_metrics(y_test, y_test_pred, ordered_labels)
+    per_class.to_csv("reports/tables/multiclass_per_class_metrics.csv")
     joblib.dump(best_pipe, "models/best_multiclass_model.joblib")
 
     print("Best validation model:")
     print(best[["feature_set", "model", "macro_f1", "balanced_accuracy", "weighted_f1"]])
     print("Test metrics:")
     print(test_metrics)
+    print("Per-class metrics:")
+    print(per_class)
+
+
+def _save_confusion_matrices(y_true, y_pred, labels: list[str], path: str) -> None:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    cm_raw = confusion_matrix(y_true, y_pred, labels=labels)
+    cm_norm = confusion_matrix(y_true, y_pred, labels=labels, normalize="true")
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    sns.heatmap(cm_raw, annot=True, fmt="d", cmap="Blues", xticklabels=labels, yticklabels=labels, ax=axes[0])
+    axes[0].set_title("Mutation-type confusion matrix - raw counts")
+    axes[0].set_xlabel("Predicted")
+    axes[0].set_ylabel("Observed")
+
+    sns.heatmap(
+        cm_norm,
+        annot=True,
+        fmt=".2f",
+        cmap="Blues",
+        vmin=0,
+        vmax=1,
+        xticklabels=labels,
+        yticklabels=labels,
+        ax=axes[1],
+    )
+    axes[1].set_title("Mutation-type confusion matrix - row-normalised recall")
+    axes[1].set_xlabel("Predicted")
+    axes[1].set_ylabel("Observed")
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
+
+
+def _per_class_metrics(y_true, y_pred, labels: list[str]) -> pd.DataFrame:
+    report = classification_report(y_true, y_pred, labels=labels, output_dict=True, zero_division=0)
+    return (
+        pd.DataFrame(report)
+        .T.loc[[label for label in labels if label in report], ["precision", "recall", "f1-score", "support"]]
+        .round(3)
+    )
 
 
 if __name__ == "__main__":
