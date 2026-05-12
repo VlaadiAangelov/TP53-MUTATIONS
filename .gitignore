@@ -15,4 +15,6 @@ reports/tables/*
 !data/processed/.gitkeep
 !reports/figures/.gitkeep
 !reports/tables/.gitkeep
+.*
+
 

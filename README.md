@@ -71,8 +71,10 @@ Older releases may use the previous expression filename
 ## Method Summary
 
 The binary task labels every matched sample as TP53 mutant or wild-type. The
-mutation-type task uses a collapsed label set, with multiple TP53 mutations in a
-sample resolved by severity:
+mutation-type task uses hotspot-aware broad classes: WT, Hotspot Missense, Other
+Missense, Truncating, Other, and any in-frame indel class retained only if it
+meets the minimum class-count threshold. Multiple TP53 mutations in a sample are
+first resolved by severity:
 
 1. Frameshift or nonsense
 2. Splice, start lost, or stop lost
@@ -80,6 +82,9 @@ sample resolved by severity:
 4. In-frame insertion/deletion
 5. Synonymous
 6. Other
+
+Hotspot missense samples are defined using TP53 residues R175, G245, R248, R249,
+R273, and R282. Nonsense and frameshift mutations are grouped as Truncating.
 
 Feature selection and scaling are fitted only on training folds through sklearn
 pipelines to avoid data leakage.
