@@ -71,8 +71,10 @@ macro F1, weighted F1, balanced accuracy, and confusion matrix.
 
 ## 4. Results
 
-The binary model comparison selected a random forest trained on curated p53
-pathway genes as the best validation model. On the held-out test set it reached:
+### CCLE / DepMap (cancer cell lines, n=1,719)
+
+The binary model comparison selected a **random forest trained on curated p53
+pathway genes** as the best validation model. On the held-out test set:
 
 - Accuracy: 0.829
 - Balanced accuracy: 0.812
@@ -84,12 +86,34 @@ pathway genes as the best validation model. On the held-out test set it reached:
 
 The mutation-type task was harder, as expected from class imbalance and the
 biological heterogeneity of TP53 variants. The best validation model was a
-random forest trained on TP53 target genes. On the held-out test set it reached:
+**histogram gradient boosting classifier trained on TP53 target genes**. On the
+held-out test set:
 
 - Accuracy: 0.715
-- Balanced accuracy: 0.449
-- Macro F1: 0.448
-- Weighted F1: 0.690
+- Balanced accuracy: 0.454
+- Macro F1: 0.467
+- Weighted F1: 0.694
+
+### TCGA Pan-Cancer (primary tumours, n=9,701)
+
+The larger TCGA dataset was processed separately (Primary Tumor samples only,
+expression scale not mixed with CCLE). The best binary model was a
+**histogram gradient boosting classifier trained on the top 3,000 variable genes**.
+On the held-out test set:
+
+- Accuracy: 0.864
+- Balanced accuracy: 0.844
+- Precision: 0.789
+- Recall: 0.789
+- F1-score: 0.789
+- ROC-AUC: 0.921
+- PR-AUC: 0.819
+
+TCGA achieves a higher ROC-AUC (0.921 vs 0.906) and balanced accuracy (0.844 vs
+0.812) than CCLE, consistent with the larger and more diverse training set.
+The lower F1 (0.789 vs 0.863) reflects the reversed class balance in TCGA
+(68% WT vs 32% mutant), which makes the model more conservative in predicting
+the mutant class.
 
 Generated result files:
 

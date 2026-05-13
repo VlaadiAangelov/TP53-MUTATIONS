@@ -23,16 +23,31 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train mutation-type classifiers.")
     parser.add_argument("--config", default="config/project.yaml")
     parser.add_argument("--min-class-count", type=int, default=10)
+    parser.add_argument("--data-dir", default=None,
+                        help="Override processed data directory (e.g. data/processed/tcga)")
+    parser.add_argument("--tag", default=None,
+                        help="Prefix for output files, e.g. 'tcga' → tcga_multiclass_test_performance.csv")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     random_state = cfg["project"]["random_state"]
+
+    if args.data_dir:
+        data_dir = Path(args.data_dir)
+        expr_path = data_dir / "expression_matched.csv.gz"
+        labels_path = data_dir / "tp53_labels.csv"
+    else:
+        expr_path = Path(cfg["data"]["expression_processed"])
+        labels_path = Path(cfg["data"]["labels_processed"])
+
+    tag = (args.tag or (Path(args.data_dir).name if args.data_dir else "ccle")) + "_"
+
     Path("models").mkdir(exist_ok=True)
     Path("reports/tables").mkdir(parents=True, exist_ok=True)
     Path("reports/figures").mkdir(parents=True, exist_ok=True)
 
-    X = pd.read_csv(cfg["data"]["expression_processed"], index_col=0)
-    labels = pd.read_csv(cfg["data"]["labels_processed"])
+    X = pd.read_csv(expr_path, index_col=0)
+    labels = pd.read_csv(labels_path)
     y_raw = labels["mutation_type_collapsed"].astype(str)
 
     counts = y_raw.value_counts()
@@ -73,24 +88,24 @@ def main() -> None:
             print(f"{feature_name} / {model_name}: val macro-F1={metric_row['macro_f1']:.3f}")
 
     results = pd.DataFrame(rows).sort_values(["macro_f1", "balanced_accuracy", "weighted_f1"], ascending=False)
-    results.to_csv("reports/tables/multiclass_validation_performance.csv", index=False)
+    results.to_csv(f"reports/tables/{tag}multiclass_validation_performance.csv", index=False)
     best = results.iloc[0]
     best_pipe = make_pipeline(selectors[best["feature_set"]], models[best["model"]], scale=best["model"] in SCALE_MODELS)
     best_pipe.fit(X_trainval, y_trainval)
     y_test_pred = best_pipe.predict(X_test)
     test_metrics = multiclass_metrics(y_test, y_test_pred)
     pd.DataFrame([{**test_metrics, "feature_set": best["feature_set"], "model": best["model"], "split": "test"}]).to_csv(
-        "reports/tables/multiclass_test_performance.csv", index=False
+        f"reports/tables/{tag}multiclass_test_performance.csv", index=False
     )
     ordered_labels = sorted(y.unique())
     save_confusion_matrix(
         y_test,
         y_test_pred,
         labels=ordered_labels,
-        path="reports/figures/multiclass_confusion_matrix.png",
+        path=f"reports/figures/{tag}multiclass_confusion_matrix.png",
         title="TP53 mutation type",
     )
-    joblib.dump(best_pipe, "models/best_multiclass_model.joblib")
+    joblib.dump(best_pipe, f"models/{tag}best_multiclass_model.joblib")
 
     print("Best validation model:")
     print(best[["feature_set", "model", "macro_f1", "balanced_accuracy", "weighted_f1"]])

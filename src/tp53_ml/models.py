@@ -26,7 +26,6 @@ def binary_model_specs(random_state: int = 42) -> dict:
     return {
         "majority": DummyClassifier(strategy="most_frequent"),
         "logistic_l2": LogisticRegression(
-            penalty="l2",
             C=1.0,
             class_weight="balanced",
             max_iter=5000,
@@ -34,13 +33,11 @@ def binary_model_specs(random_state: int = 42) -> dict:
             random_state=random_state,
         ),
         "elastic_net_logistic": LogisticRegression(
-            penalty="elasticnet",
             C=0.2,
             l1_ratio=0.5,
             class_weight="balanced",
             max_iter=5000,
             solver="saga",
-            n_jobs=1,
             random_state=random_state,
         ),
         "linear_svm": LinearSVC(class_weight="balanced", C=0.2, random_state=random_state, max_iter=10000),
@@ -81,22 +78,18 @@ def multiclass_model_specs(random_state: int = 42) -> dict:
     return {
         "majority": DummyClassifier(strategy="most_frequent"),
         "logistic_l2": LogisticRegression(
-            penalty="l2",
             C=1.0,
             class_weight="balanced",
             max_iter=5000,
             solver="lbfgs",
-            n_jobs=1,
             random_state=random_state,
         ),
         "elastic_net_logistic": LogisticRegression(
-            penalty="elasticnet",
             C=0.2,
             l1_ratio=0.5,
             class_weight="balanced",
             max_iter=5000,
             solver="saga",
-            n_jobs=1,
             random_state=random_state,
         ),
         "linear_svm": LinearSVC(
@@ -131,7 +124,6 @@ def multiclass_model_specs(random_state: int = 42) -> dict:
             hidden_layer_sizes=(256, 64),
             activation="relu",
             alpha=0.001,
-            early_stopping=True,
             max_iter=300,
             random_state=random_state,
         ),

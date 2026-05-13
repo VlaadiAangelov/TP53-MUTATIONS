@@ -23,17 +23,35 @@ SCALE_MODELS = {"logistic_l2", "elastic_net_logistic", "linear_svm", "mlp"}
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train binary TP53 mutant vs WT classifiers.")
     parser.add_argument("--config", default="config/project.yaml")
+    parser.add_argument("--data-dir", default=None,
+                        help="Override processed data directory (e.g. data/processed/tcga)")
+    parser.add_argument("--tag", default=None,
+                        help="Prefix for output files, e.g. 'tcga' → tcga_binary_test_performance.csv")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     random_state = cfg["project"]["random_state"]
+
+    # Resolve data paths — CLI --data-dir overrides config
+    if args.data_dir:
+        data_dir = Path(args.data_dir)
+        expr_path = data_dir / "expression_matched.csv.gz"
+        labels_path = data_dir / "tp53_labels.csv"
+        meta_path = data_dir / "sample_metadata.csv"
+    else:
+        expr_path = Path(cfg["data"]["expression_processed"])
+        labels_path = Path(cfg["data"]["labels_processed"])
+        meta_path = Path(cfg["data"]["metadata_processed"])
+
+    tag = (args.tag or (Path(args.data_dir).name if args.data_dir else "ccle")) + "_"
+
     Path("models").mkdir(exist_ok=True)
     Path("reports/tables").mkdir(parents=True, exist_ok=True)
     Path("reports/figures").mkdir(parents=True, exist_ok=True)
 
-    X = pd.read_csv(cfg["data"]["expression_processed"], index_col=0)
-    labels = pd.read_csv(cfg["data"]["labels_processed"])
-    metadata = pd.read_csv(cfg["data"]["metadata_processed"])
+    X = pd.read_csv(expr_path, index_col=0)
+    labels = pd.read_csv(labels_path)
+    metadata = pd.read_csv(meta_path)
     y = labels["tp53_mutant"].astype(int)
 
     X_trainval, X_test, y_trainval, y_test, lab_trainval, lab_test = train_test_split(
@@ -72,7 +90,7 @@ def main() -> None:
             print(f"{feature_name} / {model_name}: val ROC-AUC={metric_row['roc_auc']:.3f}, F1={metric_row['f1']:.3f}")
 
     results = pd.DataFrame(rows).sort_values(["roc_auc", "balanced_accuracy", "f1"], ascending=False)
-    results.to_csv("reports/tables/binary_validation_performance.csv", index=False)
+    results.to_csv(f"reports/tables/{tag}binary_validation_performance.csv", index=False)
     best = results.iloc[0]
     best_key = (best["feature_set"], best["model"])
     best_pipe = make_pipeline(selectors[best_key[0]], models[best_key[1]], scale=best_key[1] in SCALE_MODELS)
@@ -82,18 +100,18 @@ def main() -> None:
     y_test_score = positive_class_scores(best_pipe, X_test)
     test_metrics = binary_metrics(y_test, y_test_pred, y_test_score)
     pd.DataFrame([{**test_metrics, "feature_set": best_key[0], "model": best_key[1], "split": "test"}]).to_csv(
-        "reports/tables/binary_test_performance.csv", index=False
+        f"reports/tables/{tag}binary_test_performance.csv", index=False
     )
-    save_confusion_matrix(y_test, y_test_pred, labels=[0, 1], path="reports/figures/binary_confusion_matrix.png", title="TP53 mutant vs WT")
-    save_binary_curves(y_test, y_test_score, "reports/figures/binary_best_model")
-    save_per_cancer_metrics(lab_test, metadata, y_test_pred, "reports/tables/binary_per_lineage_performance.csv")
-    joblib.dump(best_pipe, "models/best_binary_model.joblib")
+    save_confusion_matrix(y_test, y_test_pred, labels=[0, 1], path=f"reports/figures/{tag}binary_confusion_matrix.png", title="TP53 mutant vs WT")
+    save_binary_curves(y_test, y_test_score, f"reports/figures/{tag}binary_best_model")
+    save_per_cancer_metrics(lab_test, metadata, y_test_pred, f"reports/tables/{tag}binary_per_lineage_performance.csv")
+    joblib.dump(best_pipe, f"models/{tag}best_binary_model.joblib")
 
     feature_names = selected_feature_names(best_pipe)
     importance = _feature_importance(best_pipe, feature_names)
     if importance is not None:
-        importance.to_csv("reports/tables/binary_best_model_top_genes.csv", index=False)
-        _plot_importance(importance.head(25), "reports/figures/binary_top_genes.png")
+        importance.to_csv(f"reports/tables/{tag}binary_best_model_top_genes.csv", index=False)
+        _plot_importance(importance.head(25), f"reports/figures/{tag}binary_top_genes.png")
 
     print("Best validation model:")
     print(best[["feature_set", "model", "roc_auc", "balanced_accuracy", "f1"]])
