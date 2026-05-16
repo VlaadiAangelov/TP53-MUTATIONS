@@ -52,22 +52,71 @@ def main() -> None:
     X = pd.read_csv(expr_path, index_col=0)
     labels = pd.read_csv(labels_path)
     metadata = pd.read_csv(meta_path)
-    y = labels["tp53_mutant"].astype(int)
 
-    X_trainval, X_test, y_trainval, y_test, lab_trainval, lab_test = train_test_split(
-        X,
+    split_frame = labels[["sample_id", "tp53_mutant", "mutation_type_collapsed"]].merge(
+        metadata[["sample_id", "primary_disease"]],
+        on="sample_id",
+        how="left",
+    )
+
+    test_size = cfg["split"]["test_size"]
+    validation_size = cfg["split"]["validation_size"]
+    min_stratum_count = int(np.ceil(1 / min(test_size, validation_size)))
+
+    disease_status_counts = (
+        split_frame.groupby(["primary_disease", "tp53_mutant"])
+        .size()
+        .unstack(fill_value=0)
+    )
+    for status in [0, 1]:
+        if status not in disease_status_counts.columns:
+            disease_status_counts[status] = 0
+
+    eligible_diseases = disease_status_counts.index[
+        (disease_status_counts[0] >= min_stratum_count)
+        & (disease_status_counts[1] >= min_stratum_count)
+    ]
+    disease_keep_mask = split_frame["primary_disease"].isin(eligible_diseases)
+
+    strata = (
+        split_frame["primary_disease"].fillna("Unknown disease")
+        + " | TP53_"
+        + split_frame["tp53_mutant"].map({0: "WT", 1: "mutant"}).astype(str)
+        + " | "
+        + split_frame["mutation_type_collapsed"].fillna("Unknown mutation type").astype(str)
+    )
+    strata_after_disease_filter = strata.loc[disease_keep_mask]
+    stratum_counts = strata_after_disease_filter.value_counts()
+    composite_keep_mask = strata.map(stratum_counts).fillna(0) >= min_stratum_count
+    keep_mask = disease_keep_mask & composite_keep_mask
+
+    X_split = X.loc[keep_mask.to_numpy()]
+    labels_split = labels.loc[keep_mask.to_numpy()].reset_index(drop=True)
+    strata_split = strata.loc[keep_mask].reset_index(drop=True)
+    y = labels_split["tp53_mutant"].astype(int)
+
+    print(f"Minimum samples required per stratum: {min_stratum_count}")
+    print(f"Samples before filtering: {len(labels):,}")
+    print(f"Samples after filtering:  {len(labels_split):,}")
+    print(f"Samples removed:          {len(labels) - len(labels_split):,}")
+    print(f"Cancer types retained:    {split_frame.loc[keep_mask, 'primary_disease'].nunique():,}")
+    print(f"Strata retained:          {strata_split.nunique():,}")
+
+    X_trainval, X_test, y_trainval, y_test, lab_trainval, lab_test, strata_trainval, _ = train_test_split(
+        X_split,
         y,
-        labels,
-        test_size=cfg["split"]["test_size"],
-        stratify=y,
+        labels_split,
+        strata_split,
+        test_size=test_size,
+        stratify=strata_split,
         random_state=random_state,
     )
-    val_fraction = cfg["split"]["validation_size"] / (1 - cfg["split"]["test_size"])
+    val_fraction = validation_size / (1 - test_size)
     X_train, X_val, y_train, y_val = train_test_split(
         X_trainval,
         y_trainval,
         test_size=val_fraction,
-        stratify=y_trainval,
+        stratify=strata_trainval,
         random_state=random_state,
     )
 
