@@ -37,6 +37,7 @@ def binary_model_specs(random_state: int = 42) -> dict:
             l1_ratio=0.5,
             class_weight="balanced",
             max_iter=5000,
+            penalty="elasticnet",
             solver="saga",
             random_state=random_state,
         ),
