@@ -50,7 +50,7 @@ TP53 is the most frequently mutated gene in human cancer (~50% of all tumours). 
 │   ├── 01_build_dataset.py       # Build matched CCLE dataset
 │   ├── 01_build_tcga_dataset.py  # Build matched TCGA dataset
 │   ├── 02_eda.py                 # Exploratory data analysis
-│   ├── 03_train_binary.py        # Binary classification (supports --data-dir, --tag)
+│   ├── 03_train_binary.py        # Binary classification + hill-climb tuning (supports --data-dir, --tag)
 │   ├── 04_train_multiclass.py    # Multiclass classification (supports --data-dir, --tag)
 │   ├── 05_interpret.py           # Feature importance + differential expression
 │   ├── 06_train_advanced_multiclass.py  # LightGBM + OvR (supports --feature-set)
@@ -143,7 +143,7 @@ The primary deliverable is **`notebooks/tcga_main_notebook.ipynb`** — a self-c
 3. Class balance and expression distributions
 4. PCA visualisation (TP53 status, mutation type, cancer type)
 5. Cancer type analysis — TP53 mutation rates and mutation type profiles
-6. Binary model training and evaluation (ROC-AUC 0.921)
+6. Binary model training, hill-climb tuning, and evaluation (ROC-AUC 0.921)
 7. Per-cancer-type performance breakdown
 8. Multiclass model comparison — baseline, LightGBM variants, two-stage approach
 
@@ -166,6 +166,7 @@ jupyter nbconvert --to html notebooks/tcga_main_notebook.ipynb
 - Stratified 70% / 15% / 15% train / validation / test split
 - Feature selection and scaling fitted inside sklearn pipelines on training data only (no data leakage)
 - Model selection on validation set; test set touched exactly once
+- Binary classifiers are also tuned with model-specific hill-climb searches on the validation set
 - Class-weighted loss for all models to handle imbalance
 - Macro F1 and balanced accuracy as primary multiclass metrics (not overall accuracy)
 
