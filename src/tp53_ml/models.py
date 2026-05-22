@@ -47,7 +47,7 @@ def binary_model_specs(random_state: int = 42) -> dict:
             max_features="sqrt",
             min_samples_leaf=2,
             class_weight="balanced_subsample",
-            n_jobs=1,
+            n_jobs=-1,
             random_state=random_state,
         ),
         "extra_trees": ExtraTreesClassifier(
@@ -55,7 +55,7 @@ def binary_model_specs(random_state: int = 42) -> dict:
             max_features="sqrt",
             min_samples_leaf=2,
             class_weight="balanced",
-            n_jobs=1,
+            n_jobs=-1,
             random_state=random_state,
         ),
         "hist_gradient_boosting": HistGradientBoostingClassifier(
@@ -104,7 +104,7 @@ def multiclass_model_specs(random_state: int = 42) -> dict:
             max_features="sqrt",
             min_samples_leaf=2,
             class_weight="balanced_subsample",
-            n_jobs=1,
+            n_jobs=-1,
             random_state=random_state,
         ),
         "extra_trees": ExtraTreesClassifier(
@@ -112,7 +112,7 @@ def multiclass_model_specs(random_state: int = 42) -> dict:
             max_features="sqrt",
             min_samples_leaf=2,
             class_weight="balanced",
-            n_jobs=1,
+            n_jobs=-1,
             random_state=random_state,
         ),
         "hist_gradient_boosting": HistGradientBoostingClassifier(

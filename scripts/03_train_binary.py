@@ -57,6 +57,7 @@ def main() -> None:
     X = pd.read_csv(expr_path, index_col=0)
     labels = pd.read_csv(labels_path)
     metadata = pd.read_csv(meta_path)
+    metadata = _normalise_disease_col(metadata)
 
     split_frame = labels[["sample_id", "tp53_mutant", "mutation_type_collapsed"]].merge(
         metadata[["sample_id", "primary_disease"]],
@@ -497,6 +498,17 @@ def _plot_importance(df: pd.DataFrame, path: str) -> None:
     fig.tight_layout()
     fig.savefig(path, dpi=180)
     plt.close(fig)
+
+
+def _normalise_disease_col(metadata: "pd.DataFrame") -> "pd.DataFrame":
+    if "primary_disease" in metadata.columns:
+        return metadata
+    for col in metadata.columns:
+        if col.lower().replace("_", "") == "oncotreeprimarydisease" or col.lower().replace("_", "") == "primarydisease":
+            return metadata.rename(columns={col: "primary_disease"})
+    metadata = metadata.copy()
+    metadata["primary_disease"] = "Unknown"
+    return metadata
 
 
 if __name__ == "__main__":
